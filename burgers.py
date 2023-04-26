@@ -36,7 +36,7 @@ class PhysicsInformedNN:
         self.null = torch.zeros((self.x_f.shape[0], 1))
         self.type_of_loss = type_of_loss
         self.mu = mu
-        assert type_of_loss in ["custom_loss", "l1_reg", "l2_reg"]
+        assert type_of_loss in ["Custom Loss Function", "LASSO Regularization", "Ridge Regularization"]
 
         # initialize net:
         self.create_net()
@@ -137,8 +137,8 @@ class PhysicsInformedNN:
         window_size = int(time*10)+1
         weights = np.ones(window_size) / window_size
         smooth_y = np.convolve(u, weights, mode='same')
-        ax.plot(x_,smooth_y,color='blue',label='True solution')
-        ax.plot(x.numpy(), usol.detach().numpy(), label='PINN solution',linestyle='--',color='red')
+        ax.plot(x_,smooth_y,color='blue',label='True solution',linewidth=2)
+        ax.plot(x.numpy(), usol.detach().numpy(), label='PINN solution',linestyle='--',color='red',linewidth=2)
         ax.set_xlabel('$x$')
         ax.set_ylabel('$u$')
         ax.legend()
@@ -173,7 +173,9 @@ class PhysicsInformedNN:
                       interpolation='nearest',
                       cmap='rainbow', 
                       extent=[tnp.min(), tnp.max(), xnp.min(), xnp.max()], 
-                      origin='lower', aspect='auto')
+                      origin='lower', aspect='auto', label='Heatmap of Predicted solution')
+        ax.set_xlabel("x (in m)")
+        ax.set_ylabel("t (in s)")
         divider = make_axes_locatable(ax)
         cax = divider.append_axes("right", size="5%", pad=0.10)
         cbar = fig.colorbar(h, cax=cax)
@@ -197,17 +199,17 @@ class PhysicsInformedNN:
             + f_loss
             + self.mu
             * sum(p.pow(2).sum() for p in self.net.parameters())
-            * (self.type_of_loss == "l2_reg")
+            * (self.type_of_loss == "Ridge Regularization")
             + self.mu
             * sum(p.abs().sum() for p in self.net.parameters())
-            * (self.type_of_loss == "l1_reg")
+            * (self.type_of_loss == "LASSO Regularization")
         )
         # derivative with respect to net's weights:
         self.ls.backward()
 
+        my_bar.progress(int((self.iter)/self.epochs*100), text="Training")
         # increase iteration count:
         self.iter += 1
-        my_bar.progress(int(self.iter/self.epochs*100), text="Training")
         # print report:
         if not self.iter % 100:
             print("Epoch: {0:}, Loss: {1:6.3f}".format(self.iter, self.ls)) 
@@ -221,7 +223,34 @@ class PhysicsInformedNN:
 
 
 if __name__ == "__main__":
-    
+    st.title('PINN Demo')
+    # define custom CSS
+    custom_css = """
+        <style>
+            .small-title {
+                font-size: 30px;
+            }
+        </style>
+    """
+
+    # add custom CSS to the page
+    st.markdown(custom_css, unsafe_allow_html=True)
+
+    # your app code here
+    st.write(r'''
+    Hello! Welcome to PINN demo application. Here we will use a Physics Informed Neural Network to visualize solutions to the following viscous Burgers Equation:
+
+    $u_t+uu_x-\frac{0.01}{\pi}u_{xx}=0$
+
+    The initial condition and the boundary conditions are as follows:
+
+    $u(1,t)=u(-1,t)=0, $
+    $u(x,0)=-sin(\pi{x})$
+
+    Please select the parameters of your choice from below.
+
+    Click on "Start Training" button once you are done choosing your desired parameters.
+    ''')
     nx = 101
     nt = 100000
     dx = 2.0 / (nx - 1)
@@ -235,12 +264,10 @@ if __name__ == "__main__":
         dudt = np.zeros(nx)
         dudt[1:-1] = -u[1:-1] * (u[2:] - u[:-2]) / (2 * dx) + nu * (u[2:] - 2 * u[1:-1] + u[:-2]) / dx**2
         return dudt
-
-    st.title('PINN Demo')
     training=False
     col1, col2, col3 = st.columns(3)
     # Create a dropdown menu for selecting the type of regularization and loss function
-    reg_type = col1.selectbox('Select regularization type:', ['custom_loss','l1_reg','l2_reg'])
+    reg_type = col1.selectbox('Select regularization type:', ['Custom Loss Function','LASSO Regularization','Ridge Regularization'])
     time_value = col2.number_input('Enter time value:', value=0.2,min_value=0.0, max_value=0.5)
     num_epochs=col3.number_input("Number of Epochs: ",value=100)
     # Create a slider for adjusting the value of the regularization constant
@@ -303,7 +330,7 @@ if __name__ == "__main__":
         my_bar = st.progress(0, text="Training")
         pinn.train()
         pinn.plot(time_value)
-        st.title('PINN Demo')
+        st.markdown('<h2 class="small-title">PINN plots</h2>', unsafe_allow_html=True)
 
         # Display the saved PNG image
         st.image("Plots/heatmap.png")
