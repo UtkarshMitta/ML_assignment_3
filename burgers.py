@@ -244,7 +244,7 @@ if __name__ == "__main__":
 
     The initial condition and the boundary conditions are as follows:
 
-    $u(1,t)=u(-1,t)=0, $
+    $u(1,t)=u(-1,t)=0; $
     $u(x,0)=-sin(\pi{x})$
 
     Please select the parameters of your choice from below.
@@ -264,20 +264,9 @@ if __name__ == "__main__":
         dudt = np.zeros(nx)
         dudt[1:-1] = -u[1:-1] * (u[2:] - u[:-2]) / (2 * dx) + nu * (u[2:] - 2 * u[1:-1] + u[:-2]) / dx**2
         return dudt
-    training=False
-    col1, col2, col3 = st.columns(3)
-    # Create a dropdown menu for selecting the type of regularization and loss function
-    reg_type = col1.selectbox('Select regularization type:', ['Custom Loss Function','LASSO Regularization','Ridge Regularization'])
-    time_value = col2.number_input('Enter time value:', value=0.2,min_value=0.0, max_value=0.5)
-    num_epochs=col3.number_input("Number of Epochs: ",value=100)
-    # Create a slider for adjusting the value of the regularization constant
-    reg_value = st.slider('Select regularization value:', 0.0, 1.0, 0.1)
     
-    if st.button('Start Training'):
-        training = not training
     # Create an input field for entering the value of time
     
-    dt = time_value / nt
     def cash_karp(u, t, dt, nu):
         c = np.array([0, 1/5, 3/10, 3/5, 1, 7/8])
         a = np.array([[0, 0, 0, 0, 0],
@@ -294,16 +283,9 @@ if __name__ == "__main__":
             k[i] = burgers(u + dt * np.dot(a[i,:i], k[:i]), t + c[i] * dt , nu)
         unew = u + dt * np.dot(b,k)
         return unew
-
-    for n in range(nt):
-        u = cash_karp(u,n*dt ,dt ,nu)
     # Display the selected values
-    st.write(f'Regularization type: {reg_type}')
-    st.write(f'Regularization value: {reg_value}')
-    st.write(f'Time value: {time_value}')
     # Plot the PINN solution for the selected time value
     # (replace this with your own code for plotting the PINN solution)
-    st.write(f'Plotting PINN solution for t={time_value}...')
     nu = 0.01 / np.pi  # constant in the diff. equation
     N_u = 100  # number of data points in the boundaries
     N_f = 10000
@@ -324,9 +306,29 @@ if __name__ == "__main__":
     N_f = 10000
     X_f_train = lb + (ub - lb) * np.random.rand(N_f, 2)
     # Initialize the PINN with the training data
+    training=False
+    col1, col2, col3 = st.columns(3)
+    # Create a dropdown menu for selecting the type of regularization and loss function
+    reg_type = col1.selectbox('Select regularization type:', ['Custom Loss Function','LASSO Regularization','Ridge Regularization'])
+    time_value = col2.number_input('Enter time value (in s):', value=0.2,min_value=0.0, max_value=0.5)
+    num_epochs=col3.number_input("Number of Epochs: ",value=500)
+    # Create a slider for adjusting the value of the regularization constant
+    reg_value=0
+    if reg_type!='Custom Loss Function':
+        reg_value = st.slider('Select regularization constant:', 0.0, 1.0, 0.1)
+    
+    if st.button('Start Training'):
+        training = not training
+    dt = time_value / nt
+    for n in range(nt):
+        u = cash_karp(u,n*dt ,dt ,nu)
     pinn = PhysicsInformedNN(X_u_train, u_train, X_f_train, reg_type, reg_value, num_epochs)
     
     if training:
+        st.write(f'Regularization type: {reg_type}')
+        if reg_type!='Custom Loss Function':
+            st.write(f'Regularization value: {reg_value}')
+        st.write(f'Time value: {time_value}')
         my_bar = st.progress(0, text="Training")
         pinn.train()
         pinn.plot(time_value)
