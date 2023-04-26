@@ -312,12 +312,13 @@ if __name__ == "__main__":
     reg_type = col1.selectbox('Select regularization type:', ['Custom Loss Function','LASSO Regularization','Ridge Regularization'])
     time_value = col2.number_input('Enter time value (in s):', value=0.2,min_value=0.0, max_value=0.5)
     num_epochs=col3.number_input("Number of Epochs: ",value=500)
+    col1, col2, col3 = st.columns(3)
     # Create a slider for adjusting the value of the regularization constant
     reg_value=0
     if reg_type!='Custom Loss Function':
         reg_value = st.slider('Select regularization constant:', 0.0, 1.0, 0.1)
     
-    if st.button('Start Training'):
+    if col2.button('Start Training'):
         training = not training
     dt = time_value / nt
     for n in range(nt):
